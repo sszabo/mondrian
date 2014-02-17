@@ -14,6 +14,7 @@ import mondrian.calc.impl.*;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
 import mondrian.olap.Role.RollupPolicy;
+import mondrian.rolap.ManyToManyUtil;
 import mondrian.rolap.RolapAggregator;
 import mondrian.rolap.RolapEvaluator;
 
@@ -107,6 +108,9 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                     "Don't know how to rollup aggregator '" + aggregator + "'");
             }
             if (aggregator != RolapAggregator.DistinctCount) {
+                tupleList =
+                    ManyToManyUtil.processManyToManyMembers(
+                        evaluator, tupleList);
                 final int savepoint = evaluator.savepoint();
                 try {
                     evaluator.setNonEmpty(false);

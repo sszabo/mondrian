@@ -1345,6 +1345,19 @@ whether to enable new naming behavior.</p>
         <Default>false</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>SsasKeyLookup</Name>
+        <Path>mondrian.olap.SsasKeyLookup</Path>
+        <Description>
+<p>Property that defines
+how member key segments are looked up by default (when no level specified).</p>
+
+<p>If true, using a key on a hierarchy look into the top level,
+otherwise looks at the bottom level.</p>
+        </Description>
+        <Type>boolean</Type>
+        <Default>false</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>XmlaSchemaRefreshInterval</Name>
         <Path>mondrian.xmla.SchemaRefreshInterval</Path>
         <Description>
@@ -1365,6 +1378,48 @@ Default time unit is milliseconds.</p>
         </Description>
         <Type>String</Type>
         <Default>3000ms</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
+        <Name>XmlaUseMSSASError</Name>
+        <Path>mondrian.xmla.UseMSSASError</Path>
+        <Description>
+<p>If set to true, the error element in SOAP Fault responses detail 
+will conform to what's returned by MS SQL Analysis Services and
+recognized by ADOMD.NET.</p>
+        </Description>
+        <Type>Boolean</Type>
+        <Default>false</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
+        <Name>XmlaAlwaysIncludeDefaultSlicer</Name>
+        <Path>mondrian.xmla.AlwaysIncludeDefaultSlicer</Path>
+        <Description>
+<p>If set to true the slicer axis will always report the default members for unconstrained dimensions.</p>
+        </Description>
+        <Type>Boolean</Type>
+        <Default>false</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
+        <Name>XmlaCustomProviderVersion</Name>
+        <Path>mondrian.xmla.CustomProviderVersion</Path>
+        <Description>
+<p>If not empty, this will be the ProviderVersion reported by mondrian xmla. This
+  has impact on which properties will throw a NotSupportedException in adomd.</p>
+<p>If left empty mondrian will return its actual version.</p>
+        </Description>
+        <Type>String</Type>
+        <Default></Default>
+    </PropertyDefinition>
+        <PropertyDefinition>
+        <Name>FetchChildrenCardinality</Name>
+        <Path>mondrian.olap.FetchChildrenCardinality</Path>
+        <Description>
+<p>If set to false, the CHILDREN_CARDINALITY property will be set to level cardinality.</p>
+<p>This way the value will always be overestimated but improve performance in XMLA queries, which
+  require this property to be set for all members.</p>
+        </Description>
+        <Type>Boolean</Type>
+        <Default>true</Default>
     </PropertyDefinition>
     <PropertyDefinition>
         <Name>FilterChildlessSnowflakeMembers</Name>

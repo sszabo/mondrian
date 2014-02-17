@@ -17,6 +17,7 @@ import mondrian.mdx.*;
 import mondrian.olap.*;
 import mondrian.olap.fun.FunDefBase;
 import mondrian.resource.MondrianResource;
+import mondrian.rolap.CalculatedCellUtil.CellCalc;
 import mondrian.rolap.aggmatcher.ExplicitRules;
 import mondrian.rolap.cache.SoftSmartCache;
 import mondrian.server.Locus;
@@ -101,6 +102,9 @@ public class RolapCube extends CubeBase {
         new HashMap<RolapLevel, RolapCubeLevel>();
 
     final BitKey closureColumnBitKey;
+
+    // contains the cell calculations for this cube.
+    public List<CellCalc> cellCalcs = new ArrayList<CellCalc>();
 
     /**
      * Private constructor used by both normal cubes and virtual cubes.
@@ -306,6 +310,7 @@ public class RolapCube extends CubeBase {
 
         checkOrdinals(xmlCube.name, measureList);
         loadAggGroup(xmlCube);
+        CalculatedCellUtil.processCalculatedCells(this, xmlCube.calculatedCells, cellCalcs);
     }
 
     /**
@@ -674,6 +679,7 @@ public class RolapCube extends CubeBase {
                 new MeasureMemberSource(
                     this.measuresHierarchy,
                     Util.<RolapMember>cast(finalMeasureMembers))));
+        CalculatedCellUtil.processCalculatedCells(this, xmlVirtualCube.calculatedCells, cellCalcs);
         // Note: virtual cubes do not get aggregate
     }
 
@@ -1824,6 +1830,48 @@ public class RolapCube extends CubeBase {
                     //   "fact"."foreignKey" = "product_class"."product_id"
 
                     table = table.addJoin(this, relation, joinCondition);
+
+                    // this logic adds additional parents for many to many
+                    // hierarchies
+                    if (hierarchy instanceof RolapCubeHierarchy) {
+                        RolapCubeHierarchy hier =
+                            (RolapCubeHierarchy)hierarchy;
+                        if (hier.manyToManyAddlJoins != null
+                            && hier.manyToManyAddlJoins.size() > 0)
+                        {
+                            for (RolapCubeHierarchy.ManyToManyAddlJoin addlJoin : 
+                              ((RolapCubeHierarchy)hierarchy1).manyToManyAddlJoins) {
+                                // find the bridge table
+                                RolapStar.Table t =
+                                    table.findAncestor(addlJoin.bridgeTable);
+                                MondrianDef.Column factForeignKeyColumn =
+                                    new MondrianDef.Column(
+                                        star.getFactTable().getAlias(),
+                                        addlJoin.cubeForeignKey);
+                                MondrianDef.Column dimPrimaryKeyColumn =
+                                    new MondrianDef.Column(
+                                        addlJoin.relation.getAlias(),
+                                        addlJoin.primaryKey);
+                                MondrianDef.Column bridgeForeignKeyColumn =
+                                    new MondrianDef.Column(
+                                        addlJoin.bridgeTable,
+                                        addlJoin.bridgeForeignKey);
+                                RolapStar.Condition factJoin =
+                                    new RolapStar.Condition(
+                                        factForeignKeyColumn,
+                                        dimPrimaryKeyColumn);
+                                RolapStar.Condition bridgeCond =
+                                    new RolapStar.Condition(
+                                        dimPrimaryKeyColumn,
+                                        bridgeForeignKeyColumn);
+                                RolapStar.Table addlParent =
+                                    star.getFactTable().addJoin(
+                                        this, addlJoin.relation, factJoin);
+                                t.addAdditionalParent(addlParent);
+                                t.addAdditionalJoinCondition(bridgeCond);
+                            }
+                        }
+                    }
                 }
 
                 // The parent Column is used so that non-shared dimensions
@@ -1981,6 +2029,17 @@ public class RolapCube extends CubeBase {
     public boolean shouldIgnoreUnrelatedDimensions(String baseCubeName) {
         return cubeUsages != null
             && cubeUsages.shouldIgnoreUnrelatedDimensions(baseCubeName);
+    }
+
+    /**
+     * return the usages of this cube, used
+     * for mapping many to many dimensions back
+     * to their parent cubes in virtual cubes.
+     *
+     * @return cube usages
+     */
+    RolapCubeUsages getCubeUsages() {
+      return cubeUsages;
     }
 
     /**
@@ -2522,6 +2581,29 @@ public class RolapCube extends CubeBase {
                 }
             }
         }
+        // this is a special case where the hierarchy is a many to many
+        // hierarchy
+        if (hierarchy.getDimension().getName().indexOf("$M2M$") >= 0) {
+            String rootDim = hierarchy.getDimension().getName().substring(
+                0, hierarchy.getDimension().getName().indexOf("$M2M$"));
+            for (int i = 0; i < getDimensions().length; i++) {
+                Dimension dimension = getDimensions()[i];
+                if (dimension.getName().equals(rootDim)) {
+                    List<RolapCubeHierarchy> manyToManyHierarchies =
+                        ((RolapCubeHierarchy)dimension.getHierarchies()[0])
+                        .getManyToManyHierarchies();
+                    for (RolapCubeHierarchy m2mHierarchy
+                      : manyToManyHierarchies)
+                    {
+                        if (hierarchy.getDimension().getName()
+                            .equals(m2mHierarchy.getDimension().getName()))
+                        {
+                            return m2mHierarchy;
+                        }
+                    }
+                }
+            }
+        }
         return null;
     }
 
@@ -2784,7 +2866,7 @@ public class RolapCube extends CubeBase {
                     new QueryAxis[0],
                     null,
                     new QueryPart[0],
-                    new Parameter[0],
+                    Collections.<Parameter>emptyList(),
                     false);
             query.createValidator().validate(formula);
             calculatedMemberList.add(formula);

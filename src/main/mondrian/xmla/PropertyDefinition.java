@@ -5,12 +5,12 @@
 // You must accept the terms of that agreement to use this software.
 //
 // Copyright (C) 2003-2005 Julian Hyde
-// Copyright (C) 2005-2011 Pentaho
+// Copyright (C) 2005-2014 Pentaho
 // All Rights Reserved.
 */
-
 package mondrian.xmla;
 
+import mondrian.olap.MondrianProperties;
 import mondrian.olap.MondrianServer;
 
 import org.olap4j.impl.Olap4jUtil;
@@ -52,6 +52,16 @@ public enum PropertyDefinition {
         "When establishing a session with an Analysis Services instance to send an XMLA command, this property is equivalent to the OLE DB property, DBPROP_INIT_CATALOG.\n"
         + "When you set this property during a session to change the current database for the session, this property is equivalent to the OLE DB property, DBPROP_CURRENTCATALOG.\n"
         + "The default value for this property is an empty string."),
+
+    ClientProcessID(
+        RowsetDefinition.Type.Integer,
+        null,
+        XmlaConstants.Access.ReadWrite,
+        "0",
+        XmlaConstants.Method.DISCOVER_AND_EXECUTE,
+        "Contains the identifier (ID) of the process thread for the current session. "
+        + "The default value for this property is zero (0). "
+        + "This property can be used with the Discover and Execute methods."),
 
     Content(
         RowsetDefinition.Type.EnumString,
@@ -159,7 +169,13 @@ public enum PropertyDefinition {
         RowsetDefinition.Type.String,
         null,
         XmlaConstants.Access.Read,
-        MondrianServer.forId(null).getVersion().getVersionString(),
+        // this prevents some adomd properties (ie Hierarchy.DisplayFolder) from
+        // automatically throwing a NotSupportedException
+         MondrianProperties.instance()
+             .XmlaCustomProviderVersion.get().trim().equals("")
+                 ? MondrianServer.forId(null).getVersion().getVersionString()
+                     :  MondrianProperties.instance()
+                         .XmlaCustomProviderVersion.get(),
         XmlaConstants.Method.DISCOVER,
         "The version of the Mondrian XMLA Provider"),
 
@@ -177,6 +193,16 @@ public enum PropertyDefinition {
         + "(default), 'application/xml' (equivalent to 'text/xml'), or "
         + "'application/json'. If not specified, value in the 'Accept' header "
         + "of the HTTP request is used."),
+
+    SspropInitAppName(
+        RowsetDefinition.Type.String,
+        null,
+        XmlaConstants.Access.Read,
+        "None",
+        XmlaConstants.Method.DISCOVER_AND_EXECUTE,
+        "Contains the name of the client application. "
+        + "There is no default value for this property. "
+        + "This property can be used with the Discover and Execute methods."),
 
     StateSupport(
         RowsetDefinition.Type.EnumString,

@@ -8,7 +8,6 @@
 // Copyright (C) 2005-2013 Pentaho and others
 // All Rights Reserved.
 */
-
 package mondrian.olap.fun;
 
 import mondrian.olap.*;
@@ -543,6 +542,45 @@ public class FunctionTest extends FoodMartTestCase {
             + "Axis #1:\n"
             + "{[Gender].[foo]}\n"
             + "Row #0: false\n");
+    }
+
+    /**
+     * This tests the fix for MONDRIAN-1825
+     */
+    public void testCaseTypes() {
+      assertQueryReturns(
+          "WITH SET [Example Set] AS "
+          + "'CASE WHEN 1=1 THEN {[Time].[1997].[Q4].[10]} ELSE {[Time].[1997].[Q4].[11]} END'\n"
+          + "SELECT [Example Set] on columns from [Sales]",
+          "Axis #0:\n"
+          + "{}\n"
+          + "Axis #1:\n"
+          + "{[Time].[1997].[Q4].[10]}\n"
+          + "Row #0: 19,958\n");
+
+      assertQueryReturns(
+          "WITH SET [Example Set] AS "
+          + "'CASE 1 WHEN 1 THEN {[Time].[1997].[Q4].[10]} ELSE {[Time].[1997].[Q4].[11]} END'\n"
+          + "SELECT [Example Set] on columns from [Sales]",
+          "Axis #0:\n"
+          + "{}\n"
+          + "Axis #1:\n"
+          + "{[Time].[1997].[Q4].[10]}\n"
+          + "Row #0: 19,958\n");
+
+      // test negative cases
+
+      assertQueryThrows(
+          "WITH SET [Example Set] AS "
+          + "'CASE 1 WHEN 1 THEN 1 ELSE 2 END'\n"
+          + "SELECT [Example Set] on columns from [Sales]",
+          "must be a set");
+
+      assertQueryThrows(
+          "WITH SET [Example Set] AS "
+          + "'CASE WHEN 1=1 THEN 1 ELSE 2 END'\n"
+          + "SELECT [Example Set] on columns from [Sales]",
+          "must be a set");
     }
 
     public void testIsEmpty()
@@ -3465,9 +3503,10 @@ public class FunctionTest extends FoodMartTestCase {
         assertExprReturns("[Measures].[Store Sales].NAME", "Store Sales");
         // MS says that ID and KEY are standard member properties for
         // OLE DB for OLAP, but not for XML/A. We don't support them.
-        assertExprThrows(
-            "[Measures].[Store Sales].ID",
-            "MDX object '[Measures].[Store Sales].ID' not found in cube 'Sales'");
+        //TODO: ID Currently defaulting to MEMBER_KEY, no longer throws error 
+        //assertExprThrows(
+        //    "[Measures].[Store Sales].ID",
+        //    "MDX object '[Measures].[Store Sales].ID' not found in cube 'Sales'");
 
         // Error for KEY is slightly different than for ID. It doesn't matter
         // very much.
@@ -8819,6 +8858,13 @@ public class FunctionTest extends FoodMartTestCase {
             "CA");
     }
 
+    public void testStrToMemberWithMemberKey() {
+       // This keyed expression failed in v3.6
+        assertExprReturns(
+            "StrToMember(\"[Time].[Year].&[1997]\").Name",
+            "1997");
+    }
+
     public void testStrToMemberFullyQualifiedName() {
         assertExprReturns(
             "StrToMember(\"[Store].[All Stores].[USA].[CA]\").Name",
@@ -9460,7 +9506,7 @@ public class FunctionTest extends FoodMartTestCase {
             // 'DependencyTestingCalc' instances embedded in it.
             return;
         }
-        TestContext.assertEqualsVerbose(expectedCalc, actualCalc);
+        TestContext.assertEqualsWithoutAnon(expectedCalc, actualCalc);
     }
 
     /**
@@ -9481,7 +9527,7 @@ public class FunctionTest extends FoodMartTestCase {
             // 'DependencyTestingCalc' instances embedded in it.
             return;
         }
-        TestContext.assertEqualsVerbose(expectedCalc, actualCalc);
+        TestContext.assertEqualsWithoutAnon(expectedCalc, actualCalc);
     }
 
     /**
